@@ -111,6 +111,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
 
 // Credential holds user and group identities to be assumed
 // by a child process started by StartProcess.
+// Groups is only considered if it is not nil. Therefore,
+// if desired to clear supplementary groups, it must be
+// assigned []uint32{} value.
 type Credential struct {
 	Uid    uint32   // User ID.
 	Gid    uint32   // Group ID.
