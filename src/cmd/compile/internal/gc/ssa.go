@@ -537,7 +537,7 @@ func (s *state) updateUnsetPredPos(b *ssa.Block) {
 
 // Information about each open-coded defer.
 type openDeferInfo struct {
-	// The ODEFER node representing the function call of the defer
+	// The ODEFER/OERRDEFER node representing the function call of the defer
 	n *Node
 	// If defer call is closure call, the address of the argtmp where the
 	// closure is stored.
@@ -556,6 +556,8 @@ type openDeferInfo struct {
 	argVals []*ssa.Value
 	// The nodes representing the argtmps where the args of the defer are stored
 	argNodes []*Node
+	// The kind of defer this is ODEFER/OERRDEFER
+	op Op
 }
 
 type state struct {
@@ -1064,7 +1066,7 @@ func (s *state) stmt(n *Node) {
 				// go through SSA.
 			}
 		}
-	case ODEFER:
+	case ODEFER, OERRDEFER:
 		if Debug_defer > 0 {
 			var defertype string
 			if s.hasOpenDefers {
@@ -1074,10 +1076,14 @@ func (s *state) stmt(n *Node) {
 			} else {
 				defertype = "heap-allocated"
 			}
-			Warnl(n.Pos, "%s defer", defertype)
+			e := ""
+			if n.Op == OERRDEFER {
+				e = "err"
+			}
+			Warnl(n.Pos, "%s %sdefer", defertype, e)
 		}
 		if s.hasOpenDefers {
-			s.openDeferRecord(n.Left)
+			s.openDeferRecord(n.Left, n.Op)
 		} else {
 			d := callDefer
 			if n.Esc == EscNever {
@@ -4090,7 +4096,7 @@ func (s *state) intrinsicArgs(n *Node) []*ssa.Value {
 // call. We will also record funcdata information on where the args are stored
 // (as well as the deferBits variable), and this will enable us to run the proper
 // defer calls during panics.
-func (s *state) openDeferRecord(n *Node) {
+func (s *state) openDeferRecord(n *Node, op Op) {
 	// Do any needed expression evaluation for the args (including the
 	// receiver, if any). This may be evaluating something like 'autotmp_3 =
 	// once.mutex'. Such a statement will create a mapping in s.vars[] from
@@ -4149,6 +4155,7 @@ func (s *state) openDeferRecord(n *Node) {
 	}
 	opendefer.argVals = args
 	opendefer.argNodes = argNodes
+	opendefer.op = op
 	index := len(s.openDefers)
 	s.openDefers = append(s.openDefers, opendefer)
 
@@ -4226,6 +4233,18 @@ func (s *state) openDeferExit() {
 	s.lastDeferExit = deferExit
 	s.lastDeferCount = len(s.openDefers)
 	zeroval := s.constInt8(types.Types[TUINT8], 0)
+
+	// Find the last error return value of the function
+	// this is used for errdefer clauses
+	var errRet *Node
+	for i := len(s.curfn.Func.Dcl) - 1; i >= 0; i-- {
+		n := s.curfn.Func.Dcl[i]
+		if n.Class() == PPARAMOUT && n.Type.Sym == types.Errortype.Sym {
+			errRet = n
+			break
+		}
+	}
+
 	// Test for and run defers in reverse order
 	for i := len(s.openDefers) - 1; i >= 0; i-- {
 		r := s.openDefers[i]
@@ -4243,8 +4262,35 @@ func (s *state) openDeferExit() {
 		b.SetControl(eqVal)
 		b.AddEdgeTo(bEnd)
 		b.AddEdgeTo(bCond)
-		bCond.AddEdgeTo(bEnd)
+
+		if r.op != OERRDEFER {
+			bCond.AddEdgeTo(bEnd)
+		}
+
 		s.startBlock(bCond)
+
+		// For errdefer, we must also test if we are returning an error
+		// In case of the function returning more than one error value,
+		// only the last one is considered
+		if r.op == OERRDEFER {
+			bCondErr := s.f.NewBlock(ssa.BlockPlain)
+
+			// check if the error return value is nil
+			errAddr := s.addr(errRet, false)
+			errVal := s.load(errRet.Type, errAddr)
+			errNil := s.constInterface(types.Errortype)
+			errCmp := s.newValue2(ssa.OpNeqInter, types.Errortype, errVal, errNil)
+
+			b := s.endBlock()
+			b.Kind = ssa.BlockIf
+			b.SetControl(errCmp)
+			b.AddEdgeTo(bCondErr)
+			b.AddEdgeTo(bEnd)
+			bCondErr.AddEdgeTo(bEnd)
+
+			// error != nil
+			s.startBlock(bCondErr)
+		}
 
 		// Clear this bit in deferBits and force store back to stack, so
 		// we will not try to re-run this defer call if this defer call panics.

@@ -385,7 +385,7 @@ func (e *Escape) stmt(n *Node) {
 		}
 	case OCALLFUNC, OCALLMETH, OCALLINTER, OCLOSE, OCOPY, ODELETE, OPANIC, OPRINT, OPRINTN, ORECOVER:
 		e.call(nil, n, nil)
-	case OGO, ODEFER:
+	case OGO, ODEFER, OERRDEFER:
 		e.stmts(n.Left.Ninit)
 		e.call(nil, n.Left, n)
 
@@ -715,7 +715,7 @@ func (e *Escape) assignHeap(src *Node, why string, where *Node) {
 
 // call evaluates a call expressions, including builtin calls. ks
 // should contain the holes representing where the function callee's
-// results flows; where is the OGO/ODEFER context of the call, if any.
+// results flows; where is the OGO/ODEFER/OERRDEFER context of the call, if any.
 func (e *Escape) call(ks []EscHole, call, where *Node) {
 	// First, pick out the function callee, its type, and receiver
 	// (if any) and normal arguments list.
@@ -888,7 +888,7 @@ func (e *Escape) augmentParamHole(k EscHole, call, where *Node) EscHole {
 	// do need to last until end of function. Tee with a
 	// non-transient location to avoid arguments from being
 	// transiently allocated.
-	if where.Op == ODEFER && e.loopDepth == 1 {
+	if (where.Op == ODEFER || where.Op == OERRDEFER) && e.loopDepth == 1 {
 		// force stack allocation of defer record, unless open-coded
 		// defers are used (see ssa.go)
 		where.Esc = EscNever

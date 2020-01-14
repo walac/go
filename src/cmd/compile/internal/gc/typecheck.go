@@ -1929,11 +1929,28 @@ func typecheck1(n *Node, top int) (res *Node) {
 			n.Left = nil
 		}
 
-	case ODEFER:
+	case ODEFER, OERRDEFER:
 		ok |= ctxStmt
 		n.Left = typecheck(n.Left, ctxStmt|ctxExpr)
 		if !n.Left.Diag() {
 			checkdefergo(n)
+		}
+
+		// For OERRDEFER, we must check if the current function returns an error
+		if n.Op == OERRDEFER {
+			hasErrRetVal := false
+			results := Curfn.Type.Results()
+			// start from backwards because usually the error return value is the last one
+			for i := Curfn.Type.NumResults() - 1; i >= 0; i-- {
+				field := results.Field(i)
+				if field.Type.Sym == types.Errortype.Sym {
+					hasErrRetVal = true
+					break
+				}
+			}
+			if !hasErrRetVal {
+				yyerror("errdefer clause in a function that doesn't return error")
+			}
 		}
 
 	case OGO:
@@ -2167,6 +2184,8 @@ func checkdefergo(n *Node) {
 	what := "defer"
 	if n.Op == OGO {
 		what = "go"
+	} else if n.Op == OERRDEFER {
+		what = "errdefer"
 	}
 
 	switch n.Left.Op {

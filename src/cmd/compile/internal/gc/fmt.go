@@ -169,6 +169,7 @@ var goopnames = []string{
 	ODEFER:    "defer",
 	ODIV:      "/",
 	OEQ:       "==",
+	OERRDEFER: "errdefer",
 	OFALL:     "fallthrough",
 	OFOR:      "for",
 	OFORUNTIL: "foruntil", // not actual syntax; used to avoid off-end pointer live on backedge.892
@@ -1046,6 +1047,9 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
 	case ODEFER:
 		mode.Fprintf(s, "defer %v", n.Left)
 
+	case OERRDEFER:
+		mode.Fprintf(s, "errdefer %v", n.Left)
+
 	case OIF:
 		if simpleinit {
 			mode.Fprintf(s, "if %v; %v { %v }", n.Ninit.First(), n.Left, n.Nbody)
@@ -1248,6 +1252,7 @@ var opprec = []int{
 	ODCLFIELD:   -1,
 	ODEFER:      -1,
 	OEMPTY:      -1,
+	OERRDEFER:   -1,
 	OFALL:       -1,
 	OFOR:        -1,
 	OFORUNTIL:   -1,

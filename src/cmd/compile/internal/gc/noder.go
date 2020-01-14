@@ -992,6 +992,8 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
 		switch stmt.Tok {
 		case syntax.Defer:
 			op = ODEFER
+		case syntax.Errdefer:
+			op = OERRDEFER
 		case syntax.Go:
 			op = OGO
 		default:

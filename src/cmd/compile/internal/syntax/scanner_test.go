@@ -256,6 +256,7 @@ var sampleTokens = [...]struct {
 	{_Continue, "continue", 0, 0},
 	{_Default, "default", 0, 0},
 	{_Defer, "defer", 0, 0},
+	{_Errdefer, "errdefer", 0, 0},
 	{_Else, "else", 0, 0},
 	{_Fallthrough, "fallthrough", 0, 0},
 	{_For, "for", 0, 0},

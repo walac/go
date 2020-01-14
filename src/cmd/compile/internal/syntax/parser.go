@@ -273,6 +273,7 @@ const stopset uint64 = 1<<_Break |
 	1<<_Const |
 	1<<_Continue |
 	1<<_Defer |
+	1<<_Errdefer |
 	1<<_Fallthrough |
 	1<<_For |
 	1<<_Go |
@@ -762,7 +763,7 @@ func (p *parser) unaryExpr() Expr {
 	return p.pexpr(true)
 }
 
-// callStmt parses call-like statements that can be preceded by 'defer' and 'go'.
+// callStmt parses call-like statements that can be preceded by 'defer', 'errdefer' and 'go'.
 func (p *parser) callStmt() *CallStmt {
 	if trace {
 		defer p.trace("callStmt")()
@@ -770,7 +771,7 @@ func (p *parser) callStmt() *CallStmt {
 
 	s := new(CallStmt)
 	s.pos = p.pos()
-	s.Tok = p.tok // _Defer or _Go
+	s.Tok = p.tok // _Defer, _Errdefer or _Go
 	p.next()
 
 	x := p.pexpr(p.tok == _Lparen) // keep_parens so we can report error below
@@ -2109,7 +2110,7 @@ func (p *parser) stmtOrNil() Stmt {
 		}
 		return s
 
-	case _Go, _Defer:
+	case _Go, _Defer, _Errdefer:
 		return p.callStmt()
 
 	case _Goto:

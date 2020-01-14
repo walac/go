@@ -48,6 +48,7 @@ const (
 	_Default     // default
 	_Defer       // defer
 	_Else        // else
+	_Errdefer    // errdefer
 	_Fallthrough // fallthrough
 	_For         // for
 	_Func        // func
@@ -78,8 +79,9 @@ const (
 	Goto        = _Goto
 
 	// for CallStmt
-	Go    = _Go
-	Defer = _Defer
+	Go       = _Go
+	Defer    = _Defer
+	Errdefer = _Errdefer
 )
 
 // Make sure we have at most 64 tokens so we can use them in a set.

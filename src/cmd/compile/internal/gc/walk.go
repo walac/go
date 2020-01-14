@@ -212,7 +212,7 @@ func walkstmt(n *Node) *Node {
 	case OCASE:
 		yyerror("case statement out of place")
 
-	case ODEFER:
+	case ODEFER, OERRDEFER:
 		Curfn.Func.SetHasDefer(true)
 		Curfn.Func.numDefers++
 		if Curfn.Func.numDefers > maxOpenDefers {

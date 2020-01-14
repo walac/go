@@ -745,6 +745,7 @@ const (
 	OCONTINUE // continue [Sym]
 	ODEFER    // defer Left (Left must be call)
 	OEMPTY    // no-op (empty statement)
+	OERRDEFER // errdefer Left (Left must be call)
 	OFALL     // fallthrough
 	OFOR      // for Ninit; Left; Right { Nbody }
 	// OFORUNTIL is like OFOR, but the test (Left) is applied after the body:
